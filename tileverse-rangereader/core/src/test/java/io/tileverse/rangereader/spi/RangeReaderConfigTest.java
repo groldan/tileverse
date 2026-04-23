@@ -22,6 +22,7 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import java.util.Map;
+import java.util.Properties;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -107,5 +108,69 @@ class RangeReaderConfigTest {
                 .filter(e -> e.getFormattedMessage().contains(legacy))
                 .count();
         assertThat(warnings).isEqualTo(1);
+    }
+
+    @Test
+    void setParameter_legacyKey_readableAsCanonical() {
+        RangeReaderConfig config = new RangeReaderConfig().uri("file:///tmp/x.pmtiles");
+        config.setParameter("io.tileverse.rangereader.s3.region", "eu-west-1");
+        assertThat(config.getParameter("storage.s3.region", String.class)).contains("eu-west-1");
+    }
+
+    @Test
+    void setParameter_canonicalKey_readableAsLegacy() {
+        RangeReaderConfig config = new RangeReaderConfig().uri("file:///tmp/x.pmtiles");
+        config.setParameter("storage.azure.blob-name", "foo.pmtiles");
+        assertThat(config.getParameter("io.tileverse.rangereader.azure.blob-name", String.class))
+                .contains("foo.pmtiles");
+    }
+
+    @Test
+    void setParameter_legacyProviderKey_populatesProviderId() {
+        RangeReaderConfig config = new RangeReaderConfig().uri("file:///tmp/x.pmtiles");
+        config.setParameter("io.tileverse.rangereader.provider", "s3");
+        assertThat(config.providerId()).contains("s3");
+    }
+
+    @Test
+    void fromProperties_legacyUriAndProviderKeys_parseCorrectly() {
+        Properties p = new Properties();
+        p.setProperty("io.tileverse.rangereader.uri", "file:///tmp/x.pmtiles");
+        p.setProperty("io.tileverse.rangereader.provider", "s3");
+        p.setProperty("io.tileverse.rangereader.s3.region", "us-west-2");
+
+        RangeReaderConfig config = RangeReaderConfig.fromProperties(p);
+
+        assertThat(config.uri().toString()).isEqualTo("file:///tmp/x.pmtiles");
+        assertThat(config.providerId()).contains("s3");
+        assertThat(config.getParameter("storage.s3.region", String.class)).contains("us-west-2");
+    }
+
+    @Test
+    void fromProperties_canonicalUriAndProviderKeys_parseCorrectly() {
+        Properties p = new Properties();
+        p.setProperty("storage.uri", "file:///tmp/x.pmtiles");
+        p.setProperty("storage.provider", "s3");
+        p.setProperty("storage.s3.region", "us-west-2");
+
+        RangeReaderConfig config = RangeReaderConfig.fromProperties(p);
+
+        assertThat(config.uri().toString()).isEqualTo("file:///tmp/x.pmtiles");
+        assertThat(config.providerId()).contains("s3");
+        assertThat(config.getParameter("storage.s3.region", String.class)).contains("us-west-2");
+    }
+
+    @Test
+    void toProperties_emitsOnlyCanonicalKeys() {
+        RangeReaderConfig config = new RangeReaderConfig().uri("file:///tmp/x.pmtiles");
+        config.setParameter("io.tileverse.rangereader.s3.region", "us-west-2");
+        config.providerId("s3");
+
+        Properties out = config.toProperties();
+
+        assertThat(out.stringPropertyNames()).allMatch(k -> !k.startsWith("io.tileverse.rangereader."));
+        assertThat(out.getProperty("storage.uri")).isEqualTo("file:///tmp/x.pmtiles");
+        assertThat(out.getProperty("storage.provider")).isEqualTo("s3");
+        assertThat(out.getProperty("storage.s3.region")).isEqualTo("us-west-2");
     }
 }
