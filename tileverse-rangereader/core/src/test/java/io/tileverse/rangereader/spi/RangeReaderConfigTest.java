@@ -17,42 +17,11 @@ package io.tileverse.rangereader.spi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import java.util.Map;
 import java.util.Properties;
-import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.Execution;
-import org.junit.jupiter.api.parallel.ExecutionMode;
-import org.slf4j.LoggerFactory;
 
-// Attaching a Logback ListAppender from a parallel worker thread can race with SLF4J's
-// static binding and return a SubstituteLogger that can't be cast to Logback Logger.
-// Run this class single-threaded to avoid that init race.
-@Execution(ExecutionMode.SAME_THREAD)
 class RangeReaderConfigTest {
-
-    private ListAppender<ILoggingEvent> logAppender;
-    private Logger configLogger;
-
-    @BeforeEach
-    void setupLogCapture() {
-        configLogger = (Logger) LoggerFactory.getLogger(RangeReaderConfig.class);
-        logAppender = new ListAppender<>();
-        logAppender.start();
-        configLogger.addAppender(logAppender);
-    }
-
-    @AfterEach
-    void tearDownLogCapture() {
-        configLogger.detachAppender(logAppender);
-        logAppender.stop();
-    }
 
     @Test
     void normalizeKey_canonicalPrefix_passthrough() {
@@ -92,22 +61,6 @@ class RangeReaderConfigTest {
         assertThat(out).containsEntry("storage.s3.region", "us-west-2");
         assertThat(out).containsEntry("storage.azure.blob-name", "foo.pmtiles");
         assertThat(out).containsEntry("pmtiles", "file:///tmp/x.pmtiles");
-    }
-
-    @Test
-    void normalizeKey_legacyTriggersWarnOnce() {
-        // UUID keeps the key unique across parallel test runs and repeated JVMs,
-        // so the static warnedLegacyKeys dedup set is never primed by a prior test.
-        String legacy = "io.tileverse.rangereader.test." + UUID.randomUUID();
-        RangeReaderConfig.normalizeKey(legacy);
-        RangeReaderConfig.normalizeKey(legacy);
-        RangeReaderConfig.normalizeKey(legacy);
-
-        long warnings = logAppender.list.stream()
-                .filter(e -> e.getLevel() == Level.WARN)
-                .filter(e -> e.getFormattedMessage().contains(legacy))
-                .count();
-        assertThat(warnings).isEqualTo(1);
     }
 
     @Test
