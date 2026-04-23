@@ -30,6 +30,9 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.LoggerFactory;
 
+// Attaching a Logback ListAppender from a parallel worker thread can race with SLF4J's
+// static binding and return a SubstituteLogger that can't be cast to Logback Logger.
+// Run this class single-threaded to avoid that init race.
 @Execution(ExecutionMode.SAME_THREAD)
 class RangeReaderConfigTest {
 

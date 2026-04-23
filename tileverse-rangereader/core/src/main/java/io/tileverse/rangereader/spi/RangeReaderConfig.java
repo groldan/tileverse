@@ -375,7 +375,7 @@ public class RangeReaderConfig {
             String normalized = KEY_PREFIX + key.substring(LEGACY_KEY_PREFIX.length());
             if (warnedLegacyKeys.add(key)) {
                 log.warn(
-                        "Deprecated parameter key '{}' — use '{}'. Legacy keys remain accepted but new configurations should use the '{}*' form.",
+                        "Legacy parameter key '{}' — use '{}'. Legacy keys remain accepted for backwards compatibility; new configurations should use the '{}*' form.",
                         key,
                         normalized,
                         KEY_PREFIX);
