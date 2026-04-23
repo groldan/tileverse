@@ -1,5 +1,5 @@
 /*
- * (c) Copyright 2026 Multiversio LLC. All rights reserved.
+ * (c) Copyright 2025 Multiversio LLC. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,7 +89,9 @@ class RangeReaderConfigTest {
 
     @Test
     void normalizeKey_legacyTriggersWarnOnce() {
-        String legacy = "io.tileverse.rangereader.gcs.project-id-test-only-once";
+        // UUID keeps the key unique across parallel test runs and repeated JVMs,
+        // so the static warnedLegacyKeys dedup set is never primed by a prior test.
+        String legacy = "io.tileverse.rangereader.test." + UUID.randomUUID();
         RangeReaderConfig.normalizeKey(legacy);
         RangeReaderConfig.normalizeKey(legacy);
         RangeReaderConfig.normalizeKey(legacy);
