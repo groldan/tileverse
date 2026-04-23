@@ -23,10 +23,15 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Represents the configuration for creating a {@link io.tileverse.rangereader.RangeReader} instance.
@@ -34,6 +39,21 @@ import java.util.Properties;
  * and a map of generic parameters that can be used by {@link RangeReaderProvider} implementations.
  */
 public class RangeReaderConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(RangeReaderConfig.class);
+
+    /**
+     * Prefix used on all canonical parameter keys going forward (e.g. {@code storage.s3.region}).
+     */
+    public static final String KEY_PREFIX = "storage.";
+
+    /**
+     * Prefix used by legacy (pre-{@code storage.*}) parameter keys. Legacy keys remain accepted
+     * on input for backwards compatibility with existing GeoServer catalogs.
+     */
+    public static final String LEGACY_KEY_PREFIX = "io.tileverse.rangereader.";
+
+    private static final Set<String> warnedLegacyKeys = ConcurrentHashMap.newKeySet();
 
     /**
      * The key used in {@link Properties} to specify the URI of the resource.
@@ -341,6 +361,42 @@ public class RangeReaderConfig {
             }
             throw new IllegalArgumentException("Invalid URI: " + uriString, e);
         }
+    }
+
+    /**
+     * Normalizes a parameter key by rewriting the legacy {@value #LEGACY_KEY_PREFIX} prefix to
+     * the canonical {@value #KEY_PREFIX} prefix. Logs a one-time WARN per distinct legacy key.
+     *
+     * @param key The parameter key, possibly {@code null}.
+     * @return The normalized key, or {@code key} unchanged if it does not use the legacy prefix.
+     */
+    public static String normalizeKey(String key) {
+        if (key != null && key.startsWith(LEGACY_KEY_PREFIX)) {
+            String normalized = KEY_PREFIX + key.substring(LEGACY_KEY_PREFIX.length());
+            if (warnedLegacyKeys.add(key)) {
+                log.warn(
+                        "Deprecated parameter key '{}' — use '{}'. Legacy keys remain accepted but new configurations should use the '{}*' form.",
+                        key,
+                        normalized,
+                        KEY_PREFIX);
+            }
+            return normalized;
+        }
+        return key;
+    }
+
+    /**
+     * Returns a copy of the given map with every key normalized via {@link #normalizeKey(String)}.
+     * Iteration order is preserved.
+     *
+     * @param in source map, must not be {@code null}.
+     * @return a new {@link LinkedHashMap} with normalized keys.
+     */
+    public static Map<String, Object> normalizeKeys(Map<String, ?> in) {
+        requireNonNull(in, "in");
+        Map<String, Object> out = new LinkedHashMap<>(in.size());
+        in.forEach((k, v) -> out.put(normalizeKey(k), v));
+        return out;
     }
 
     /**

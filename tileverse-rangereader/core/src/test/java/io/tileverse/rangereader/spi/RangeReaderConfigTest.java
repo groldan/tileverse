@@ -26,8 +26,11 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.LoggerFactory;
 
+@Execution(ExecutionMode.SAME_THREAD)
 class RangeReaderConfigTest {
 
     private ListAppender<ILoggingEvent> logAppender;
